@@ -104,7 +104,7 @@ library(leaflet)
 
 leaflet() %>%
   addTiles() %>%
-  addCircles(data = data_sf, weight = 1)
+  addCircles(data = data_sf, weight = 2)
 
 ```
 
