@@ -1,0 +1,110 @@
+---
+title: "Trabajo Final - Estadistica Espacial"
+output: html_notebook
+---
+
+Instalamos los paquetes necesarios
+```{r}
+library(dplyr)
+library(sf)
+```
+
+
+```{r}
+estaciones <- read.csv("estaciones_smn.csv")
+horarios <- read.csv("datohorario20210420.csv")
+```
+
+```{r}
+glimpse(estaciones)
+```
+
+```{r}
+glimpse(horarios)
+```
+
+Hay datos nulos en estos datasets?
+```{r}
+print("Nulos en horarios")
+which(is.na(horarios))
+```
+
+```{r}
+print("Nulos en estaciones")
+which(is.na(estaciones))
+```
+Borramos los nulos del dataset
+```{r}
+estaciones = na.omit(estaciones)
+horarios = na.omit(horarios)
+```
+
+
+
+Unimos las dos tablas usando la variable NOMBRE como punto para combinar los datasets
+```{r}
+data <- full_join(estaciones, horarios, by = c("NOMBRE" = "NOMBRE"))
+
+glimpse(data)
+```
+Eliminamos las observaciones nulas en el dataset
+```{r}
+data = na.omit(data)
+```
+
+La variable que representa los vientos en km/h es de tipo char. La convertimos en numeric
+```{r}
+data$FF = as.numeric(data$FF)
+```
+
+Agregamos los datos por nombre calculando el promedio y desvio del viento
+```{r}
+data_agg = data %>%
+  group_by(NOMBRE) %>%
+  summarise(MEAN_VIENTO_KMH = mean(FF), SD_VIENTO_KMH = sd(FF), x = unique(LONGITUD), y = unique(LATITUD), .groups = "keep")
+```
+
+Dibujamos en el mapa de argentina los puntos que tenemos en el dataset agrupado. Para eso
+cargamos el dataset de departamentos que tiene info de toda la argentina
+```{r}
+library(ggplot2)
+departamentos <- st_read("datos/Codgeo_Pais_x_dpto_con_datos/pxdptodatosok.shp")
+
+#verificamos la proyeccion de departamentos
+st_crs(departamentos)
+
+#como tiene otra proyeccion la pasamos a mercator
+departamentos <- st_transform(departamentos, crs = 4326)
+
+#ggplot() +
+#  geom_sf(data = departamentos) +
+#  geom_point(data = data_agg, aes(x = x, y = y), colour = "red", size = 1) +
+#  theme_minimal() +
+#  ggsave('plot.png',height = 25 , width = 30)
+```
+
+Convertimos data_agg a data.frame
+```{r}
+df_data_agg = data.frame(data_agg)
+```
+
+Transformamos df_data_agg en un archivo geográfico utilizando el código de proyección mercator
+```{r}
+data_sf = st_as_sf(df_data_agg, coords = c("x", "y"), crs = 4326)
+```
+
+Validamos la clase del nuevo dataframe
+```{r}
+class(data_sf)
+```
+
+## GRAFICO INTERACTIVO ##
+```{r}
+library(leaflet)
+
+leaflet() %>%
+  addTiles() %>%
+  addCircles(data = data_sf, weight = 1)
+
+```
+
