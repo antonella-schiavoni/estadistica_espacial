@@ -108,3 +108,13 @@ leaflet() %>%
 
 ```
 
+# Analisis descriptivo de normalidad de los datos
+```{r}
+hist(data_agg$MEAN_VIENTO_KMH)
+boxplot(data_agg$MEAN_VIENTO_KMH)
+```
+```{r}
+qqnorm(data_agg$MEAN_VIENTO_KMH)
+qqline(data_agg$MEAN_VIENTO_KMH, col=2)
+```
+
