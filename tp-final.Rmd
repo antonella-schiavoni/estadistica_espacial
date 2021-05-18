@@ -11,8 +11,8 @@ library(sf)
 
 
 ```{r}
-estaciones <- read.csv("estaciones_smn.csv")
-horarios <- read.csv("datohorario20210420.csv")
+estaciones <- read.csv("data_smn/preprocessed/estaciones_smn_v2.csv")
+horarios <- read.csv("data_smn/preprocessed/datohorario20210420.csv")
 ```
 
 ```{r}
@@ -38,7 +38,22 @@ Borramos los nulos del dataset
 estaciones = na.omit(estaciones)
 horarios = na.omit(horarios)
 ```
+Necesitamos convertir las latitudes y longitudes a
+```{r}
+library(biogeo)
 
+latitud <- c()
+longitud <- c()
+
+for(i in 1:nrow(estaciones)) {
+     latitud[i] <- dms2dd(dd = estaciones[i, "LATITUD_GRADOS"], mm = estaciones[i, "LATITUD_MINUTOS"], ss = 0, ns = "S")
+     longitud[i] <- dms2dd(dd = estaciones[i, "LONGITUD_GRADOS"], mm = estaciones[i, "LONGITUD_MINUTOS"], ss = 0, ns = "S")
+}
+
+estaciones['LATITUD'] <- latitud
+estaciones['LONGITUD'] <- longitud
+
+```
 
 
 Unimos las dos tablas usando la variable NOMBRE como punto para combinar los datasets
@@ -61,14 +76,14 @@ Agregamos los datos por nombre calculando el promedio y desvio del viento
 ```{r}
 data_agg = data %>%
   group_by(NOMBRE) %>%
-  summarise(MEAN_VIENTO_KMH = mean(FF), SD_VIENTO_KMH = sd(FF), x = unique(LONGITUD), y = unique(LATITUD), .groups = "keep")
+  summarise(MEAN_VIENTO_KMH = mean(FF), SD_VIENTO_KMH = sd(FF), LONGITUD = unique(LONGITUD), LATITUD = unique(LATITUD), .groups = "keep")
 ```
 
 Dibujamos en el mapa de argentina los puntos que tenemos en el dataset agrupado. Para eso
 cargamos el dataset de departamentos que tiene info de toda la argentina
 ```{r}
 library(ggplot2)
-departamentos <- st_read("datos/Codgeo_Pais_x_dpto_con_datos/pxdptodatosok.shp")
+departamentos <- st_read("data_departamentos/Codgeo_Pais_x_dpto_con_datos/pxdptodatosok.shp")
 
 #verificamos la proyeccion de departamentos
 st_crs(departamentos)
@@ -90,7 +105,7 @@ df_data_agg = data.frame(data_agg)
 
 Transformamos df_data_agg en un archivo geográfico utilizando el código de proyección mercator
 ```{r}
-data_sf = st_as_sf(df_data_agg, coords = c("x", "y"), crs = 4326)
+data_sf = st_as_sf(df_data_agg, coords = c("LONGITUD", "LATITUD"), crs = 4326)
 ```
 
 Validamos la clase del nuevo dataframe
@@ -117,4 +132,8 @@ boxplot(data_agg$MEAN_VIENTO_KMH)
 qqnorm(data_agg$MEAN_VIENTO_KMH)
 qqline(data_agg$MEAN_VIENTO_KMH, col=2)
 ```
-
+hacemos el test de normalidad
+```{r}
+shapiro.test(data_agg$MEAN_VIENTO_KMH)
+```
+El p-value obtenido es menor a 0.05, lo cual indica que los datos que tenemos no son normales
