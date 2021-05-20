@@ -9,18 +9,69 @@ library(dplyr)
 library(sf)
 ```
 
-
+Cargamos los datasets
 ```{r}
 estaciones <- read.csv("data_smn/preprocessed/estaciones_smn_v2.csv")
 horarios <- read.csv("data_smn/preprocessed/datohorario20210420.csv")
 ```
 
+Observamos como esta compuesto el dataset
 ```{r}
 glimpse(estaciones)
 ```
 
 ```{r}
 glimpse(horarios)
+```
+Observamos que la variable que representa la velocidad del viento en km/h es de tipo Char, por lo cual debemos convertila en int.
+```{r}
+horarios$FF <- as.numeric(horarios$FF)
+```
+
+
+```{r}
+summary(estaciones$ALTURA)
+summary(horarios$HORA)
+summary(horarios$TEMP)
+summary(horarios$HUM)
+summary(horarios$PNM)
+summary(horarios$DD)
+summary(horarios$FF)
+```
+```{r}
+hist(estaciones$ALTURA, main = "Histograma de la altura", xlab = "Altura")
+hist(horarios$HORA, main = "Histograma de horarios", xlab = "Horarios")
+hist(horarios$TEMP, main = "Histograma de temperatura", xlab = "Temperatura")
+hist(horarios$HUM, main = "Histograma de humedad", xlab = "Humedad")
+hist(horarios$PNM, main = "Histograma de presion atmosferica", xlab = "Presion Atmosferica")
+hist(horarios$DD, main = "Histograma de la direccion del viento", xlab = "Direccion del viento")
+hist(horarios$FF, main = "Histograma de la velocidad del viento", xlab = "Velocidad del viento")
+```
+Creamos unos boxplot para visualizar la distribucionde datos que potencialmente nos interecen para proceder con el analisis
+```{r}
+boxplot(estaciones$ALTURA, main = "Boxplot de la altura", xlab = "Altura")
+boxplot(horarios$HORA, main = "Boxplot de horarios", xlab = "Horarios")
+boxplot(horarios$TEMP, main = "Boxplot de temperatura", xlab = "Temperatura")
+boxplot(horarios$HUM, main = "Boxplot de humedad", xlab = "Humedad")
+boxplot(horarios$PNM, main = "Boxplot de presion atmosferica", xlab = "Presion Atmosferica")
+boxplot(horarios$DD, main = "Boxplot de la direccion del viento", xlab = "Direccion del viento")
+boxplot(horarios$FF, main = "Boxplot de la velocidad del viento", xlab = "Velocidad del viento")
+```
+
+```{r}
+library(DataExplorer)
+plot_boxplot(horarios, by = "HORA")
+plot_boxplot(horarios, by = "TEMP")
+```
+Ahora, veamos que tan correlacionadas estan estas variables
+```{r}
+library(ggcorrplot)
+
+corr <- cor(horarios[, c(2,3,4,5,6,7)], use = "complete.obs")
+ggcorrplot(corr, type = "lower", outline.col = "black",
+ lab=TRUE,
+ ggtheme = ggplot2::theme_gray,
+ colors = c("#6D9EC1", "white", "#E46726"))
 ```
 
 Hay datos nulos en estos datasets?
@@ -38,6 +89,7 @@ Borramos los nulos del dataset
 estaciones = na.omit(estaciones)
 horarios = na.omit(horarios)
 ```
+
 Necesitamos convertir las latitudes y longitudes a
 ```{r}
 library(biogeo)
@@ -65,11 +117,6 @@ glimpse(data)
 Eliminamos las observaciones nulas en el dataset
 ```{r}
 data = na.omit(data)
-```
-
-La variable que representa los vientos en km/h es de tipo char. La convertimos en numeric
-```{r}
-data$FF = as.numeric(data$FF)
 ```
 
 Agregamos los datos por nombre calculando el promedio y desvio del viento
@@ -119,8 +166,32 @@ library(leaflet)
 
 leaflet() %>%
   addTiles() %>%
-  addCircles(data = data_sf, weight = 2)
+  addCircles(data = data_sf, weight = 3)
 
+```
+# Analisis Estadistico de los datos
+
+Analisis univariado
+```{r}
+describe(data_agg$MEAN_VIENTO_KMH)
+```
+
+
+```{r}
+hist(data_agg$MEAN_VIENTO_KMH)
+boxplot(data_agg$MEAN_VIENTO_KMH)
+```
+```{r}
+hist(data_agg$SD_VIENTO_KMH)
+boxplot(data_agg$SD_VIENTO_KMH)
+```
+```{r}
+hist(data$FF)
+boxplot(data$FF)
+```
+```{r}
+hist(data$DD)
+boxplot(data$DD)
 ```
 
 # Analisis descriptivo de normalidad de los datos
