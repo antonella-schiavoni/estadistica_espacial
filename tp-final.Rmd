@@ -7,6 +7,15 @@ Instalamos los paquetes necesarios
 ```{r}
 library(dplyr)
 library(sf)
+library(gstat)
+library(geoR)
+library(spdep)
+library(DataExplorer)
+library(psych)
+library(ggcorrplot)
+library(biogeo)
+library(ggplot2)
+library(leaflet)
 ```
 
 Cargamos los datasets
@@ -59,22 +68,18 @@ boxplot(horarios$FF, main = "Boxplot de la velocidad del viento", xlab = "Veloci
 ```
 
 ```{r}
-library(DataExplorer)
-plot_boxplot(horarios, by = "HORA")
-plot_boxplot(horarios, by = "TEMP")
+#plot_boxplot(horarios, by = "HORA")
+#plot_boxplot(horarios, by = "TEMP")
 ```
 Ahora, veamos que tan correlacionadas estan estas variables
 ```{r}
-library(ggcorrplot)
-
 corr <- cor(horarios[, c(2,3,4,5,6,7)], use = "complete.obs")
+
 ggcorrplot(corr, type = "lower", outline.col = "black",
  lab=TRUE,
  ggtheme = ggplot2::theme_gray,
  colors = c("#6D9EC1", "white", "#E46726"))
 ```
-Como correlacionan estas variables con la altura?
-
 Hay datos nulos en estos datasets?
 ```{r}
 print("Nulos en horarios")
@@ -91,18 +96,19 @@ estaciones = na.omit(estaciones)
 horarios = na.omit(horarios)
 ```
 
+Analizamos la simetria de la variable que representa la velocidad del vientoo
 ```{r}
 # Analisis de simetria
-library(psych)
-skew(horarios$FF)
 
+#library(psych)
+skew(horarios$FF)
 kurtosi(horarios$FF)
 ```
+La medida de asimetria y kurtosi terminan de validar lo que observamos en el histograma. La variable FF es asimetrica a derecha y tiene una mayor concentracion de valores muy cerca de la media de la distribución y muy lejos de la cola de la distribucion.
 
-
-Necesitamos convertir las latitudes y longitudes a
+Necesitamos convertir las latitudes y longitudes a un valor decimal para poder graficarlo en el mapa con leaflet
 ```{r}
-library(biogeo)
+#library(biogeo)
 
 latitud <- c()
 longitud <- c()
@@ -114,7 +120,6 @@ for(i in 1:nrow(estaciones)) {
 
 estaciones['LATITUD'] <- latitud
 estaciones['LONGITUD'] <- longitud
-
 ```
 
 
@@ -129,6 +134,7 @@ Eliminamos las observaciones nulas en el dataset
 data = na.omit(data)
 ```
 
+Volvemos a graficar el grafico de correlacion incluyendo la variable altura.
 ```{r}
 corr <- cor(data[, c(7,13,14,15,16,17,18)], use = "complete.obs")
 ggcorrplot(corr, type = "lower", outline.col = "black",
@@ -136,27 +142,26 @@ ggcorrplot(corr, type = "lower", outline.col = "black",
  ggtheme = ggplot2::theme_gray,
  colors = c("#6D9EC1", "white", "#E46726"))
 ```
-
-
-Agregamos los datos por nombre calculando el promedio y desvio del viento
+Agrupamos los datos por nombre calculando el promedio y desvio del viento
 ```{r}
 data_agg = data %>%
   group_by(NOMBRE) %>%
   summarise(MEAN_VIENTO_KMH = mean(FF), SD_VIENTO_KMH = sd(FF), LONGITUD = unique(LONGITUD), LATITUD = unique(LATITUD), .groups = "keep")
 ```
 
-Dibujamos en el mapa de argentina los puntos que tenemos en el dataset agrupado. Para eso
-cargamos el dataset de departamentos que tiene info de toda la argentina
+
 ```{r}
-library(ggplot2)
-departamentos <- st_read("data_departamentos/Codgeo_Pais_x_dpto_con_datos/pxdptodatosok.shp")
+#Cargamos en la variable departamentos, un mapa da argentina
+#departamentos <- st_read("data_departamentos/Codgeo_Pais_x_dpto_con_datos/pxdptodatosok.shp")
 
 #verificamos la proyeccion de departamentos
-st_crs(departamentos)
+#st_crs(departamentos)
 
 #como tiene otra proyeccion la pasamos a mercator
-departamentos <- st_transform(departamentos, crs = 4326)
+#departamentos <- st_transform(departamentos, crs = 4326)
 
+#Dibujamos en el mapa de argentina los puntos que tenemos en el dataset agrupado. Para eso
+#cargamos el dataset de departamentos que tiene info de toda la argentina
 #ggplot() +
 #  geom_sf(data = departamentos) +
 #  geom_point(data = data_agg, aes(x = x, y = y), colour = "red", size = 1) +
@@ -164,7 +169,7 @@ departamentos <- st_transform(departamentos, crs = 4326)
 #  ggsave('plot.png',height = 25 , width = 30)
 ```
 
-Convertimos data_agg a data.frame
+Convertimos data_agg a data.frame ya que necesitamos este tipo de dato para poder trabajar
 ```{r}
 df_data_agg = data.frame(data_agg)
 ```
@@ -180,52 +185,165 @@ class(data_sf)
 ```
 ##TODO: graficar el mapa de densidades con los puntos de las estaciones en data.
 
-## GRAFICO INTERACTIVO ##
+## Grafico Interactivo ##
+En el siguiente grafico de la republica argentina se observan en color azul las estaciones meteorologicas donde se realizaron las mediciones de la variables
 ```{r}
-library(leaflet)
+#library(leaflet)
+# Queremos que en el mapa se vea como etiqueta el nombre de la base meteorologica. Para eso aplicamos la siguiente funcion:
+labs <- lapply(seq(nrow(data_sf)), function(i) {
+  paste0( '<p>', data_sf[i, "NOMBRE"], '</p>' ) })
 
 leaflet() %>%
   addTiles() %>%
-  addCircles(data = data_sf, weight = 3)
+  addCircles(data = data_sf, weight = 3, label = lapply(labs, htmltools::HTML))
 
 ```
+
+En el mapa observamos que hay puntos muy distantes de la argentina continental. Dado el proposito de este estudio, el cual es determinar la locacion geografica optima en base a la variable velocidad del viento, decidimos remover estas observaciones ya que no aporta informacion util y ademas agregan ruido a nuestro analisis.
+
+
+Primero, vamos a borrar las estaciones que no estan en la argentina continental
+- Base Carlini
+- Base San Martin
+- Base Marambio
+- Base Esperanza
+- Base Orcadas
+
+```{r}
+data_sf = data_sf[data_sf$NOMBRE != "BASE CARLINI (EX JUBANY)",]
+data_sf = data_sf[data_sf$NOMBRE != "BASE SAN MARTIN",]
+data_sf = data_sf[data_sf$NOMBRE != "BASE MARAMBIO",]
+data_sf = data_sf[data_sf$NOMBRE != "BASE ESPERANZA",]
+data_sf = data_sf[data_sf$NOMBRE != "BASE ORCADAS",]
+data_sf = data_sf[data_sf$NOMBRE != "BASE BELGRANO II",]
+```
+Tambien vimos que El Bolson tiene las 9 observaciones en 0 para la variable FF y DD. Consideramos esto como un error en el instrumento de medicion, por lo cual vamos a eliminar a esa estacion del analisis.
+
+```{r}
+data_sf = data_sf[data_sf$NOMBRE != "EL BOLSON AERO",]
+```
+
+Repetimos el plot para validar
+```{r}
+labs <- lapply(seq(nrow(data_sf)), function(i) {
+  paste0( '<p>', data_sf[i, "NOMBRE"], '</p>' ) })
+
+
+leaflet() %>%
+  addTiles() %>%
+  addCircles(data = data_sf, weight = 3, label = lapply(labs, htmltools::HTML))
+
+```
+
+
 # Analisis Estadistico de los datos
 
 Analisis univariado
 ```{r}
-describe(data_agg$MEAN_VIENTO_KMH)
+describe(data_sf$MEAN_VIENTO_KMH)
 ```
 
 
 ```{r}
-hist(data_agg$MEAN_VIENTO_KMH)
-boxplot(data_agg$MEAN_VIENTO_KMH)
+hist(data_sf$MEAN_VIENTO_KMH)
+boxplot(data_sf$MEAN_VIENTO_KMH)
 ```
 ```{r}
-hist(data_agg$SD_VIENTO_KMH)
-boxplot(data_agg$SD_VIENTO_KMH)
+hist(data_sf$SD_VIENTO_KMH)
+boxplot(data_sf$SD_VIENTO_KMH)
 ```
+#COMMENTS: sacar inliers (manual de buenas practicas compartido por silvia)
+
 # Analisis descriptivo de normalidad de los datos
 ```{r}
-hist(data_agg$MEAN_VIENTO_KMH)
-boxplot(data_agg$MEAN_VIENTO_KMH)
+hist(data_sf$MEAN_VIENTO_KMH)
+boxplot(data_sf$MEAN_VIENTO_KMH)
 ```
 ```{r}
-qqnorm(data_agg$MEAN_VIENTO_KMH)
-qqline(data_agg$MEAN_VIENTO_KMH, col=2)
+qqnorm(data_sf$MEAN_VIENTO_KMH)
+qqline(data_sf$MEAN_VIENTO_KMH, col=2)
 ```
+#TODO: sacar outliers y puntos en la arg continental. 
+
 hacemos el test de normalidad
 ```{r}
-shapiro.test(data_agg$MEAN_VIENTO_KMH)
+shapiro.test(data_sf$MEAN_VIENTO_KMH)
 ```
 El p-value obtenido es menor a 0.05, lo cual indica que los datos que tenemos no son normales
 
+# Eliminamos outliers
+# Inliers
+```{r}
+
+knea <- knearneigh(data_sf)
+neib <- knn2nb(knea)
 
 
+listw <- nb2listw(neib)
+
+globalMoran <- moran.test(data_sf$MEAN_VIENTO_KMH, listw)
+globalMoran
+```
+```{r}
+moran <- moran.plot(data_sf$MEAN_VIENTO_KMH, listw = listw)
+```
+```{r}
+data_sf[10,]
+data_sf[56,]
+data_sf[87,]
+data_sf[21,]
+data_sf[73,]
+data_sf[51,]
+data_sf[55,]
+```
+
+```{r}
+data_sf = data_sf[data_sf$NOMBRE != "CERES AERO",]
+data_sf = data_sf[data_sf$NOMBRE != "SAN LUIS AERO",]
+data_sf = data_sf[data_sf$NOMBRE != "PERITO MORENO AERO",]
+data_sf = data_sf[data_sf$NOMBRE != "ORAN AERO",]
+data_sf = data_sf[data_sf$NOMBRE != "CORONEL SUAREZ AERO",]
+data_sf = data_sf[data_sf$NOMBRE != "PIGUE AERO",]
+data_sf = data_sf[data_sf$NOMBRE != "CATAMARCA AERO",]
+```
+
+# Inliers: verificamos los resultados dsp de eliminar inliers
+```{r}
+
+knea <- knearneigh(data_sf)
+neib <- knn2nb(knea)
+
+
+listw <- nb2listw(neib)
+
+globalMoran <- moran.test(data_sf$MEAN_VIENTO_KMH, listw)
+globalMoran
+```
+
+```{r}
+moran <- moran.plot(data_sf$MEAN_VIENTO_KMH, listw = listw)
+```
+
+```{r}
+data_sf[81,]
+data_sf[60,]
+data_sf[80,]
+data_sf[19,]
+```
+```{r}
+shapiro.test(data_sf$MEAN_VIENTO_KMH)
+```
+```{r}
+qqnorm((data_sf$MEAN_VIENTO_KMH))
+qqline((data_sf$MEAN_VIENTO_KMH), col=2)
+```
+
+# Variograma
 ```{r}
 coordinates(data_agg) = ~LATITUD+LONGITUD
 class(data_agg)
 ```
+
 ```{r}
 plot(data_agg)
 ```
