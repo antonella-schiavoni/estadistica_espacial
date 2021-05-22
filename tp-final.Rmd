@@ -73,6 +73,7 @@ ggcorrplot(corr, type = "lower", outline.col = "black",
  ggtheme = ggplot2::theme_gray,
  colors = c("#6D9EC1", "white", "#E46726"))
 ```
+Como correlacionan estas variables con la altura?
 
 Hay datos nulos en estos datasets?
 ```{r}
@@ -89,6 +90,15 @@ Borramos los nulos del dataset
 estaciones = na.omit(estaciones)
 horarios = na.omit(horarios)
 ```
+
+```{r}
+# Analisis de simetria
+library(psych)
+skew(horarios$FF)
+
+kurtosi(horarios$FF)
+```
+
 
 Necesitamos convertir las latitudes y longitudes a
 ```{r}
@@ -118,6 +128,15 @@ Eliminamos las observaciones nulas en el dataset
 ```{r}
 data = na.omit(data)
 ```
+
+```{r}
+corr <- cor(data[, c(7,13,14,15,16,17,18)], use = "complete.obs")
+ggcorrplot(corr, type = "lower", outline.col = "black",
+ lab=TRUE,
+ ggtheme = ggplot2::theme_gray,
+ colors = c("#6D9EC1", "white", "#E46726"))
+```
+
 
 Agregamos los datos por nombre calculando el promedio y desvio del viento
 ```{r}
@@ -159,6 +178,7 @@ Validamos la clase del nuevo dataframe
 ```{r}
 class(data_sf)
 ```
+##TODO: graficar el mapa de densidades con los puntos de las estaciones en data.
 
 ## GRAFICO INTERACTIVO ##
 ```{r}
@@ -185,15 +205,6 @@ boxplot(data_agg$MEAN_VIENTO_KMH)
 hist(data_agg$SD_VIENTO_KMH)
 boxplot(data_agg$SD_VIENTO_KMH)
 ```
-```{r}
-hist(data$FF)
-boxplot(data$FF)
-```
-```{r}
-hist(data$DD)
-boxplot(data$DD)
-```
-
 # Analisis descriptivo de normalidad de los datos
 ```{r}
 hist(data_agg$MEAN_VIENTO_KMH)
@@ -208,3 +219,37 @@ hacemos el test de normalidad
 shapiro.test(data_agg$MEAN_VIENTO_KMH)
 ```
 El p-value obtenido es menor a 0.05, lo cual indica que los datos que tenemos no son normales
+
+
+
+```{r}
+coordinates(data_agg) = ~LATITUD+LONGITUD
+class(data_agg)
+```
+```{r}
+plot(data_agg)
+```
+```{r}
+v <- variogram(MEAN_VIENTO_KMH~1, data_agg)
+plot(v)
+```
+```{r}
+vt_exp = fit.variogram(v, vgm(125, "Exp", 30, 5))
+vt_exp
+plot(v , vt_exp)
+```
+```{r}
+vt_mat = fit.variogram(v, vgm(125, "Mat", 30, 5))
+plot(v , vt_sph)
+```
+```{r}
+vt_exc = fit.variogram(v, vgm(125, "Exc", 30, 5))
+plot(v , vt_sph)
+```
+
+```{r}
+attr(vt_exp, 'SSErr')
+attr(vt_mat, 'SSErr')
+attr(vt_exc, 'SSErr')
+```
+
