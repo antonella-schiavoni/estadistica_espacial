@@ -1,0 +1,447 @@
+---
+title: "Trabajo Final - Estadistica Espacial"
+output: html_notebook
+---
+
+Instalamos los paquetes necesarios
+```{r}
+library(dplyr)
+library(sf)
+library(gstat)
+library(geoR)
+library(spdep)
+library(DataExplorer)
+library(psych)
+library(ggcorrplot)
+library(biogeo)
+library(ggplot2)
+library(leaflet)
+```
+
+Cargamos los datasets
+```{r}
+estaciones <- read.csv("data_smn/preprocessed/estaciones_smn_v2.csv")
+horarios <- read.csv("data_smn/preprocessed/datohorario20210420.csv")
+```
+
+Observamos como esta compuesto el dataset
+```{r}
+glimpse(estaciones)
+```
+
+```{r}
+glimpse(horarios)
+```
+Observamos que la variable que representa la velocidad del viento en km/h es de tipo Char, por lo cual debemos convertila en int.
+```{r}
+horarios$FF <- as.numeric(horarios$FF)
+```
+
+
+```{r}
+summary(estaciones$ALTURA)
+summary(horarios$HORA)
+summary(horarios$TEMP)
+summary(horarios$HUM)
+summary(horarios$PNM)
+summary(horarios$DD)
+summary(horarios$FF)
+```
+```{r}
+hist(estaciones$ALTURA, main = "Histograma de la altura", xlab = "Altura")
+hist(horarios$HORA, main = "Histograma de horarios", xlab = "Horarios")
+hist(horarios$TEMP, main = "Histograma de temperatura", xlab = "Temperatura")
+hist(horarios$HUM, main = "Histograma de humedad", xlab = "Humedad")
+hist(horarios$PNM, main = "Histograma de presion atmosferica", xlab = "Presion Atmosferica")
+hist(horarios$DD, main = "Histograma de la direccion del viento", xlab = "Direccion del viento")
+hist(horarios$FF, main = "Histograma de la velocidad del viento", xlab = "Velocidad del viento")
+```
+Creamos unos boxplot para visualizar la distribucionde datos que potencialmente nos interecen para proceder con el analisis
+```{r}
+boxplot(estaciones$ALTURA, main = "Boxplot de la altura", xlab = "Altura")
+boxplot(horarios$HORA, main = "Boxplot de horarios", xlab = "Horarios")
+boxplot(horarios$TEMP, main = "Boxplot de temperatura", xlab = "Temperatura")
+boxplot(horarios$HUM, main = "Boxplot de humedad", xlab = "Humedad")
+boxplot(horarios$PNM, main = "Boxplot de presion atmosferica", xlab = "Presion Atmosferica")
+boxplot(horarios$DD, main = "Boxplot de la direccion del viento", xlab = "Direccion del viento")
+boxplot(horarios$FF, main = "Boxplot de la velocidad del viento", xlab = "Velocidad del viento")
+```
+
+```{r}
+#plot_boxplot(horarios, by = "HORA")
+#plot_boxplot(horarios, by = "TEMP")
+```
+Ahora, veamos que tan correlacionadas estan estas variables
+```{r}
+corr <- cor(horarios[, c(2,3,4,5,6,7)], use = "complete.obs")
+
+ggcorrplot(corr, type = "lower", outline.col = "black",
+ lab=TRUE,
+ ggtheme = ggplot2::theme_gray,
+ colors = c("#6D9EC1", "white", "#E46726"))
+```
+Hay datos nulos en estos datasets?
+```{r}
+print("Nulos en horarios")
+which(is.na(horarios))
+```
+
+```{r}
+print("Nulos en estaciones")
+which(is.na(estaciones))
+```
+Borramos los nulos del dataset
+```{r}
+estaciones = na.omit(estaciones)
+horarios = na.omit(horarios)
+```
+
+Analizamos la simetria de la variable que representa la velocidad del vientoo
+```{r}
+# Analisis de simetria
+
+#library(psych)
+skew(horarios$FF)
+kurtosi(horarios$FF)
+```
+La medida de asimetria y kurtosi terminan de validar lo que observamos en el histograma. La variable FF es asimetrica a derecha y tiene una mayor concentracion de valores muy cerca de la media de la distribución y muy lejos de la cola de la distribucion.
+
+Necesitamos convertir las latitudes y longitudes a un valor decimal para poder graficarlo en el mapa con leaflet
+```{r}
+#library(biogeo)
+
+latitud <- c()
+longitud <- c()
+
+for(i in 1:nrow(estaciones)) {
+     latitud[i] <- dms2dd(dd = estaciones[i, "LATITUD_GRADOS"], mm = estaciones[i, "LATITUD_MINUTOS"], ss = 0, ns = "S")
+     longitud[i] <- dms2dd(dd = estaciones[i, "LONGITUD_GRADOS"], mm = estaciones[i, "LONGITUD_MINUTOS"], ss = 0, ns = "S")
+}
+
+estaciones['LATITUD'] <- latitud
+estaciones['LONGITUD'] <- longitud
+```
+
+
+Unimos las dos tablas usando la variable NOMBRE como punto para combinar los datasets
+```{r}
+data <- full_join(estaciones, horarios, by = c("NOMBRE" = "NOMBRE"))
+
+glimpse(data)
+```
+Eliminamos las observaciones nulas en el dataset
+```{r}
+data = na.omit(data)
+```
+
+Volvemos a graficar el grafico de correlacion incluyendo la variable altura.
+```{r}
+corr <- cor(data[, c(7,13,14,15,16,17,18)], use = "complete.obs")
+ggcorrplot(corr, type = "lower", outline.col = "black",
+ lab=TRUE,
+ ggtheme = ggplot2::theme_gray,
+ colors = c("#6D9EC1", "white", "#E46726"))
+```
+
+Agrupamos los datos por nombre calculando el promedio y desvio del viento
+```{r}
+data_agg = data %>%
+  group_by(NOMBRE) %>%
+  summarise(MEAN_VIENTO_KMH = mean(FF), SD_VIENTO_KMH = sd(FF), LONGITUD = unique(LONGITUD), LATITUD = unique(LATITUD), .groups = "keep")
+```
+
+
+```{r}
+#Cargamos en la variable departamentos, un mapa da argentina
+departamentos <- st_read("data_departamentos/Codgeo_Pais_x_dpto_con_datos/pxdptodatosok.shp")
+
+#verificamos la proyeccion de departamentos
+#st_crs(departamentos)
+
+#como tiene otra proyeccion la pasamos a mercator
+departamentos <- st_transform(departamentos, crs = 4326)
+
+
+departamentos <- as_Spatial(departamentos)
+
+grilla <- as.data.frame(spsample(departamentos, type="regular"))
+
+coordinates(grilla) <- ~x1+x2
+plot(grilla)
+#Dibujamos en el mapa de argentina los puntos que tenemos en el dataset agrupado. Para eso
+#cargamos el dataset de departamentos que tiene info de toda la argentina
+#ggplot() +
+#  geom_sf(data = departamentos) +
+#  geom_point(data = data_agg, aes(x = LONGITUD, y = LATITUD ), colour = "red", size = 1) +
+#  theme_minimal()
+```
+
+Convertimos data_agg a data.frame ya que necesitamos este tipo de dato para poder trabajar
+```{r}
+df_data_agg = data.frame(data_agg)
+```
+
+Transformamos df_data_agg en un archivo geográfico utilizando el código de proyección mercator
+```{r}
+data_sf = st_as_sf(df_data_agg, coords = c("LONGITUD", "LATITUD"), crs = 4326)
+```
+
+```{r}
+as_Spatial(data_sf)
+```
+
+Validamos la clase del nuevo dataframe
+```{r}
+class(data_sf)
+```
+##TODO: graficar el mapa de densidades con los puntos de las estaciones en data.
+
+## Grafico Interactivo ##
+En el siguiente grafico de la republica argentina se observan en color azul las estaciones meteorologicas donde se realizaron las mediciones de la variables
+```{r}
+#library(leaflet)
+# Queremos que en el mapa se vea como etiqueta el nombre de la base meteorologica. Para eso aplicamos la siguiente funcion:
+labs <- lapply(seq(nrow(data_sf)), function(i) {
+  paste0( '<p>', data_sf[i, "NOMBRE"], '</p>' ) })
+
+leaflet() %>%
+  addTiles() %>%
+  addCircles(data = data_sf, weight = 3, label = lapply(labs, htmltools::HTML))
+
+```
+
+En el mapa observamos que hay puntos muy distantes de la argentina continental. Dado el proposito de este estudio, el cual es determinar la locacion geografica optima en base a la variable velocidad del viento, decidimos remover estas observaciones ya que no aporta informacion util y ademas agregan ruido a nuestro analisis.
+
+
+Primero, vamos a borrar las estaciones que no estan en la argentina continental
+- Base Carlini
+- Base San Martin
+- Base Marambio
+- Base Esperanza
+- Base Orcadas
+
+```{r}
+data_sf = data_sf[data_sf$NOMBRE != "BASE CARLINI (EX JUBANY)",]
+data_sf = data_sf[data_sf$NOMBRE != "BASE SAN MARTIN",]
+data_sf = data_sf[data_sf$NOMBRE != "BASE MARAMBIO",]
+data_sf = data_sf[data_sf$NOMBRE != "BASE ESPERANZA",]
+data_sf = data_sf[data_sf$NOMBRE != "BASE ORCADAS",]
+data_sf = data_sf[data_sf$NOMBRE != "BASE BELGRANO II",]
+```
+Tambien vimos que El Bolson tiene las 9 observaciones en 0 para la variable FF y DD. Consideramos esto como un error en el instrumento de medicion, por lo cual vamos a eliminar a esa estacion del analisis.
+
+```{r}
+data_sf = data_sf[data_sf$NOMBRE != "EL BOLSON AERO",]
+```
+
+Repetimos el plot para validar
+```{r}
+labs <- lapply(seq(nrow(data_sf)), function(i) {
+  paste0( '<p>', data_sf[i, "NOMBRE"], '</p>' ) })
+
+
+leaflet() %>%
+  addTiles() %>%
+  addCircles(data = data_sf, weight = 3, label = lapply(labs, htmltools::HTML))
+
+```
+
+
+# Analisis Estadistico de los datos
+
+Analisis univariado
+```{r}
+describe(data_sf$MEAN_VIENTO_KMH)
+```
+
+
+```{r}
+hist(data_sf$MEAN_VIENTO_KMH)
+boxplot(data_sf$MEAN_VIENTO_KMH)
+```
+```{r}
+hist(data_sf$SD_VIENTO_KMH)
+boxplot(data_sf$SD_VIENTO_KMH)
+```
+#COMMENTS: sacar inliers (manual de buenas practicas compartido por silvia)
+
+# Analisis descriptivo de normalidad de los datos
+```{r}
+hist(data_sf$MEAN_VIENTO_KMH)
+boxplot(data_sf$MEAN_VIENTO_KMH)
+```
+```{r}
+qqnorm(data_sf$MEAN_VIENTO_KMH)
+qqline(data_sf$MEAN_VIENTO_KMH, col=2)
+```
+#TODO: sacar outliers y puntos en la arg continental. 
+
+Hacemos el test de normalidad contra la variable MEAN_VIENTO_KHM
+```{r}
+shapiro.test(data_sf$MEAN_VIENTO_KMH)
+```
+El p-value obtenido es menor a 0.05, lo cual indica que los datos que tenemos no son normales
+
+# Eliminamos outliers
+# Inliers
+```{r}
+
+knea <- knearneigh(data_sf)
+neib <- knn2nb(knea)
+
+
+listw <- nb2listw(neib)
+
+globalMoran <- moran.test(data_sf$MEAN_VIENTO_KMH, listw)
+globalMoran
+```
+```{r}
+moran <- moran.plot(data_sf$MEAN_VIENTO_KMH, listw = listw)
+```
+```{r}
+data_sf[10,]
+data_sf[56,]
+data_sf[87,]
+data_sf[21,]
+data_sf[73,]
+data_sf[51,]
+data_sf[55,]
+```
+
+```{r}
+data_sf = data_sf[data_sf$NOMBRE != "CERES AERO",]
+data_sf = data_sf[data_sf$NOMBRE != "SAN LUIS AERO",]
+data_sf = data_sf[data_sf$NOMBRE != "PERITO MORENO AERO",]
+data_sf = data_sf[data_sf$NOMBRE != "ORAN AERO",]
+data_sf = data_sf[data_sf$NOMBRE != "CORONEL SUAREZ AERO",]
+data_sf = data_sf[data_sf$NOMBRE != "PIGUE AERO",]
+data_sf = data_sf[data_sf$NOMBRE != "CATAMARCA AERO",]
+```
+
+# Inliers: verificamos los resultados dsp de eliminar inliers
+```{r}
+# Creamos una lista de vecinos
+knea <- knearneigh(data_sf)
+neib <- knn2nb(knea)
+listw <- nb2listw(neib)
+
+# Hacemos el test de moran 
+globalMoran <- moran.test(data_sf$MEAN_VIENTO_KMH, listw)
+globalMoran
+```
+
+```{r}
+moran <- moran.plot(data_sf$MEAN_VIENTO_KMH, listw = listw)
+```
+
+```{r}
+data_sf[81,]
+data_sf[60,]
+data_sf[80,]
+data_sf[19,]
+```
+```{r}
+shapiro.test(data_sf$MEAN_VIENTO_KMH)
+```
+```{r}
+data_sf = data_sf[data_sf$NOMBRE != "VIEDMA AERO",]
+data_sf = data_sf[data_sf$NOMBRE != "RIO GALLEGOS AERO",]
+data_sf = data_sf[data_sf$NOMBRE != "VENADO TUERTO AERO",]
+data_sf = data_sf[data_sf$NOMBRE != "CORRIENTES AERO",]
+```
+
+```{r}
+# Creamos una lista de vecinos
+knea <- knearneigh(data_sf)
+neib <- knn2nb(knea)
+listw <- nb2listw(neib)
+
+# Hacemos el test de moran 
+globalMoran <- moran.test(data_sf$MEAN_VIENTO_KMH, listw)
+globalMoran
+```
+```{r}
+moran <- moran.plot(data_sf$MEAN_VIENTO_KMH, listw = listw)
+```
+
+```{r}
+plot(data_sf$MEAN_VIENTO_KMH)
+plot(log(data_sf$MEAN_VIENTO_KMH))
+```
+
+```{r}
+qqnorm(log(data_sf$MEAN_VIENTO_KMH))
+qqline(log(data_sf$MEAN_VIENTO_KMH), col=2)
+```
+```{r}
+shapiro.test(data_sf$MEAN_VIENTO_KMH)
+```
+
+
+# Variograma
+```{r}
+#coordinates(data_sf) = ~LATITUD+LONGITUD
+#class(data_sf)
+```
+
+```{r}
+plot(df_data_agg)
+plot(data_agg[, c(4,5)])
+```
+```{r}
+v <- variogram(MEAN_VIENTO_KMH~1, data_sf)
+plot(v)
+```
+```{r}
+vt_exp = fit.variogram(v, vgm(125, "Exp", 30, 5))
+vt_exp
+plot(v , vt_exp)
+```
+```{r}
+vt_mat = fit.variogram(v, vgm(125, "Mat", 30, 5))
+plot(v , vt_mat)
+```
+```{r}
+vt_exc = fit.variogram(v, vgm(125, "Exc", 30, 5))
+plot(v , vt_exc)
+```
+```{r}
+vt_bes = fit.variogram(v, vgm(125, "Bes", 30, 5))
+plot(v , vt_bes)
+```
+
+```{r}
+attr(vt_exp, 'SSErr')
+attr(vt_mat, 'SSErr')
+attr(vt_exc, 'SSErr')
+attr(vt_bes, 'SSErr')
+```
+
+Kriging
+```{r}
+departamentos <- st_read("data_departamentos/Codgeo_Pais_x_dpto_con_datos/pxdptodatosok.shp")
+
+#como tiene otra proyeccion la pasamos a mercator
+departamentos <- st_transform(departamentos, crs = 4326)
+
+departamentos <- as_Spatial(departamentos)
+
+grilla <- as.data.frame(spsample(departamentos, type="regular"))
+names(grilla) <- c("X", "Y")
+coordinates(grilla) <- c("X", "Y")
+
+gridded(grilla) <- TRUE
+fullgrid(grilla) <- TRUE
+
+proj4string(grilla) <- proj4string(departamentos)
+```
+
+```{r}
+ko1 <- krige(MEAN_VIENTO_KMH~1, data_sf, grilla, model = vt_exp, nmax=20)
+```
+```{r}
+spplot(ko1["var1.pred"])
+spplot(ko1["var1.var"])
+
+```
+
