@@ -427,11 +427,11 @@ geary_test
 shaphiro_test <- shapiro.test(data_agg_sf$MEAN_VIENTO_KMH)
 shaphiro_test
 ```
-
+Vemos que los datos no son normales, hacemos el grafico de moran para identificar los inliers
 ```{r}
 moran <- moran.plot(data_agg_sf$MEAN_VIENTO_KMH, listw = listw)
 ```
-
+removemos la primera capa de inliers
 ```{r}
 data_agg_sf[10,]
 data_agg_sf[31,]
@@ -456,7 +456,7 @@ data_agg_sf = data_agg_sf[data_agg_sf$NOMBRE != "VICTORICA",]
 rownames(data_agg_sf) <- 1:nrow(data_agg_sf)
 ```
 
-# Inliers: verificamos los resultados dsp de eliminar inliers
+Verificamos los resultados dsp de eliminar inliers
 ```{r}
 # Creamos una lista de vecinos
 knea <- knearneigh(data_agg_sf)
@@ -478,77 +478,271 @@ moran.plot(data_agg_sf$MEAN_VIENTO_KMH, listw = listw)
 qqnorm(data_agg_sf$MEAN_VIENTO_KMH)
 qqline(data_agg_sf$MEAN_VIENTO_KMH, col=2)
 ```
+Vemos que aun no logramos normalidad. Removemos la segunda capa de inliers. Creamos un dataset auxiliar para continuar removiendo las observaciones.
 ```{r}
-data_agg_sf[56,]
-data_agg_sf[96,]
+data_agg_sf_clean = data_agg_sf
+data_agg_sf_clean[56,]
+data_agg_sf_clean[96,]
+data_agg_sf_clean[39,]
+data_agg_sf_clean[57,]
+data_agg_sf_clean[105,]
+data_agg_sf_clean[69,]
+data_agg_sf_clean[3,]
+data_agg_sf_clean[62,]
+data_agg_sf_clean[86,]
 ```
 
 ```{r}
-data_agg_sf = data_agg_sf[data_agg_sf$NOMBRE != "OBERA",]
-data_agg_sf = data_agg_sf[data_agg_sf$NOMBRE != "TRENQUE LAUQUEN",]
-rownames(data_agg_sf) <- 1:nrow(data_agg_sf)
+data_agg_sf_clean = data_agg_sf_clean[data_agg_sf_clean$NOMBRE != "OBERA",]
+data_agg_sf_clean = data_agg_sf_clean[data_agg_sf_clean$NOMBRE != "TRENQUE LAUQUEN",]
+data_agg_sf_clean = data_agg_sf_clean[data_agg_sf_clean$NOMBRE != "LABOULAYE AERO",]
+data_agg_sf_clean = data_agg_sf_clean[data_agg_sf_clean$NOMBRE != "OLAVARRIA AERO",]
+data_agg_sf_clean = data_agg_sf_clean[data_agg_sf_clean$NOMBRE != "VILLA REYNOLDS AERO",]
+data_agg_sf_clean = data_agg_sf_clean[data_agg_sf_clean$NOMBRE != "PUNTA INDIO B.A.",]
+data_agg_sf_clean = data_agg_sf_clean[data_agg_sf_clean$NOMBRE != "BAHIA BLANCA AERO",]
+data_agg_sf_clean = data_agg_sf_clean[data_agg_sf_clean$NOMBRE != "PEHUAJO AERO",]
+data_agg_sf_clean = data_agg_sf_clean[data_agg_sf_clean$NOMBRE != "SANTA ROSA AERO",]
+rownames(data_agg_sf_clean) <- 1:nrow(data_agg_sf_clean)
 ```
 
+Luego de eliminar, volvemos a checkear si nos da normalidad
 ```{r}
 # Creamos una lista de vecinos
-knea <- knearneigh(data_agg_sf)
+knea <- knearneigh(data_agg_sf_clean)
 neib <- knn2nb(knea)
 listw <- nb2listw(neib)
 
 # Hacemos el test de moran 
-moran_test_v2 <- moran.test(data_agg_sf$MEAN_VIENTO_KMH, listw)
+moran_test_v2 <- moran.test(data_agg_sf_clean$MEAN_VIENTO_KMH, listw)
 moran_test_v2
 
-geary_test_v2 <- geary.test(data_agg_sf$MEAN_VIENTO_KMH, listw)
+geary_test_v2 <- geary.test(data_agg_sf_clean$MEAN_VIENTO_KMH, listw)
 geary_test_v2
 
-shaphiro_test_v2 <- shapiro.test(data_agg_sf$MEAN_VIENTO_KMH)
+shaphiro_test_v2 <- shapiro.test(data_agg_sf_clean$MEAN_VIENTO_KMH)
 shaphiro_test_v2
 ```
 ```{r}
-moran.plot(data_agg_sf$MEAN_VIENTO_KMH, listw = listw)
-qqnorm(data_agg_sf$MEAN_VIENTO_KMH)
-qqline(data_agg_sf$MEAN_VIENTO_KMH, col=2)
+moran.plot(data_agg_sf_clean$MEAN_VIENTO_KMH, listw = listw)
+hist(data_agg_sf_clean$MEAN_VIENTO_KMH)
+qqnorm(data_agg_sf_clean$MEAN_VIENTO_KMH)
+qqline(data_agg_sf_clean$MEAN_VIENTO_KMH, col=2)
+```
+removemos la tercera capa de inliers
+```{r}
+data_agg_sf_clean[31,]
+data_agg_sf_clean[39,]
+data_agg_sf_clean[90,]
+data_agg_sf_clean[22,]
+data_agg_sf_clean[84,]
+data_agg_sf_clean[95,]
+```
+```{r}
+data_agg_sf_clean = data_agg_sf_clean[data_agg_sf_clean$NOMBRE != "JACHAL",]
+data_agg_sf_clean = data_agg_sf_clean[data_agg_sf_clean$NOMBRE != "LAS LOMITAS",]
+data_agg_sf_clean = data_agg_sf_clean[data_agg_sf_clean$NOMBRE != "TUCUMAN AERO",]
+data_agg_sf_clean = data_agg_sf_clean[data_agg_sf_clean$NOMBRE != "EL TREBOL",]
+data_agg_sf_clean = data_agg_sf_clean[data_agg_sf_clean$NOMBRE != "TANDIL AERO",]
+data_agg_sf_clean = data_agg_sf_clean[data_agg_sf_clean$NOMBRE != "VILLA DOLORES AERO",]
+rownames(data_agg_sf_clean) <- 1:nrow(data_agg_sf_clean)
 ```
 
+Checkeamos si logramos normalidad
 ```{r}
-# CALCULAMOS EL COEFICIENTE DE MORAN Y EL DE GEARY
+# Creamos una lista de vecinos
+knea <- knearneigh(data_agg_sf_clean)
+neib <- knn2nb(knea)
+listw <- nb2listw(neib)
+
+# Hacemos el test de moran 
+moran_test_v3 <- moran.test(data_agg_sf_clean$MEAN_VIENTO_KMH, listw)
+moran_test_v3
+
+geary_test_v3 <- geary.test(data_agg_sf_clean$MEAN_VIENTO_KMH, listw)
+geary_test_v3
+
+shaphiro_test_v3 <- shapiro.test(data_agg_sf_clean$MEAN_VIENTO_KMH)
+shaphiro_test_v3
+```
+```{r}
+moran.plot(data_agg_sf_clean$MEAN_VIENTO_KMH, listw = listw)
+hist(data_agg_sf_clean$MEAN_VIENTO_KMH)
+qqnorm(data_agg_sf_clean$MEAN_VIENTO_KMH)
+qqline(data_agg_sf_clean$MEAN_VIENTO_KMH, col=2)
+```
+De acuerdo a los resultados anteriores, concluimos que la distribucion de los datos no es normal. Seguimos trabajando con el dataset data_agg_sf que tiene una sola capa de limpieza de inliers.
+
+```{r}
+# calculamos el coeficiente de moran
+knea <- knearneigh(data_agg_sf)
+neib <- knn2nb(knea)
+listw <- nb2listw(neib)
 moran(data_agg_sf$MEAN_VIENTO_KMH, listw, length(listw$weights),Szero(listw),zero.policy = FALSE)
+
+moran_test_final <- moran.test(data_agg_sf$MEAN_VIENTO_KMH, listw)
+moran_test_final
+
+geary_test_final <- geary.test(data_agg_sf$MEAN_VIENTO_KMH, listw)
+geary_test_final
 ```
-#TODO: Agregar conclusion aca
+Tanto el coeficiente I de Moran([-1,1]) como el indicador de continuidad C de Geary ([0,2]) demuestran que los datos presentan una autocorrelacion positiva en donde se puede decir que tienden a una concentracion espacial.
+
 ```{r}
-plot(data_agg_sf$MEAN_VIENTO_KMH)
+library(sfheaders)
+data_agg_v2 = sf_to_df(data_agg_sf, fill = TRUE)
+data_agg_v2 = data_agg_v2[,c(2,6,7)]
+coordinates(data_agg_v2) <- ~x+y
+data_agg_v2_geo<-as.geodata(data_agg_v2)
+plot(data_agg_v2_geo)
 ```
-# Variograma
+Al analizar estos graficos obtenidos, concluimos que pareciera exisir una leve tendencia negativa a medida que aumenta los valores en el eje de la coordenada Y
+
 ```{r}
-v <- variogram(MEAN_VIENTO_KMH~1, data_agg_sf)
+data_variogram = sf_to_df(data_agg_sf, fill = TRUE)
+data_variogram <- data_variogram %>% dplyr::select(MEAN_VIENTO_KMH,x,y)
+coordinates(data_variogram) <- ~x+y
+```
+
+# Variogramas
+```{r}
+v <- variogram(MEAN_VIENTO_KMH~1, data_variogram)
 plot(v)
+
+v_alpha <- variogram(MEAN_VIENTO_KMH~1, data_variogram, alpha = c(0, 45, 90, 135))
+plot(v_alpha)
+
+v_cloud <- variogram(MEAN_VIENTO_KMH~1, data_variogram, cloud=TRUE)
+plot(v_cloud)
+
+# Elegimos a ojo el valor del cutoff
+plot(variogram(MEAN_VIENTO_KMH~1, data_variogram, cutoff=20, width=30, map=T))
+plot(variogram(MEAN_VIENTO_KMH~1, data_variogram, cutoff=10, width=5, map=T))
+plot(variogram(MEAN_VIENTO_KMH~1, data_variogram, cutoff=10, width=1, map=T))
+plot(variogram(MEAN_VIENTO_KMH~1, data_variogram, cutoff=40, width=2, map=T))
+
+```
+A partir del segundo gráfico, estamos en presencia de anisotropia en nuestro variograma. A partir del ultimo grafico del variograma, concluimos que tenemos una direccionalidad del sudoeste al noreste.
+
+Ajustamos contra el variograma empirico
+```{r}
+vt_lin = fit.variogram(v, vgm(60, "Lin", 15, 14))
+vt_lin
+plot(v , vt_lin)
 ```
 ```{r}
-vt_exp = fit.variogram(v, vgm(125, "Exp", 30, 5))
+vt_sph = fit.variogram(v, vgm(60, "Sph", 15, 15))
+vt_sph
+plot(v , vt_sph)
+```
+
+```{r}
+vt_exp = fit.variogram(v, vgm(70, "Exp", 15, 15))
 vt_exp
 plot(v , vt_exp)
 ```
 ```{r}
-vt_mat = fit.variogram(v, vgm(125, "Mat", 30, 5))
+vt_mat = fit.variogram(v, vgm(70, "Mat", 15, 15))
 plot(v , vt_mat)
 ```
 ```{r}
-vt_exc = fit.variogram(v, vgm(125, "Exc", 30, 5))
+vt_exc = fit.variogram(v, vgm(75, "Exc", 15, 0))
 plot(v , vt_exc)
 ```
+
 ```{r}
-vt_bes = fit.variogram(v, vgm(125, "Bes", 30, 5))
-plot(v , vt_bes)
-```
-```{r}
+attr(vt_lin, 'SSErr')
 attr(vt_exp, 'SSErr')
 attr(vt_mat, 'SSErr')
 attr(vt_exc, 'SSErr')
-attr(vt_bes, 'SSErr')
+```
+Probemos con tendencia
+```{r}
+v_tendencia_v1 <- variogram(MEAN_VIENTO_KMH~y+x, data_variogram)
+plot(v_tendencia_v1)
+
+v_alpha <- variogram(MEAN_VIENTO_KMH~y+x, data_variogram, alpha = c(0, 45, 90, 135))
+plot(v_alpha)
+
+v_cloud <- variogram(MEAN_VIENTO_KMH~y+x, data_variogram, cloud=TRUE)
+plot(v_cloud)
+
+# Elegimos a ojo el valor del cutoff
+plot(variogram(MEAN_VIENTO_KMH~y+x, data_variogram, cutoff=20, width=30, map=T))
+plot(variogram(MEAN_VIENTO_KMH~y+x, data_variogram, cutoff=10, width=5, map=T))
+plot(variogram(MEAN_VIENTO_KMH~y+x, data_variogram, cutoff=40, width=5, map=T))
+plot(variogram(MEAN_VIENTO_KMH~y+x, data_variogram, cutoff=40, width=2, map=T))
+```
+Mirando el segundo grafico, observamos una mayor autocorrelacion mas fuerte a los 90 y 45 grados, y una autocorrelacion menos fuerte a los 135 y 0 grados. A partir del ultimo grafico del variograma, concluimos que tenemos una direccionalidad del sudoeste al noreste.
+
+Ajustamos contra el teorico
+```{r}
+vt_tendencia_v1_lin = fit.variogram(v_tendencia_v1, vgm(60, "Lin", 15, 15))
+plot(v_tendencia_v1 , vt_tendencia_v1_lin)
+```
+```{r}
+vt_tendencia_v1_sph = fit.variogram(v_tendencia_v1, vgm(80, "Sph", 15, 15))
+vt_tendencia_v1_sph
+plot(v , vt_tendencia_v1_sph)
+```
+```{r}
+vt_tendencia_v1_exp = fit.variogram(v_tendencia_v1, vgm(70, "Exp", 20, 12))
+plot(v_tendencia_v1 , vt_tendencia_v1_exp)
+```
+```{r}
+vt_tendencia_v1_mat = fit.variogram(v_tendencia_v1, vgm(50, "Mat", 20, 12))
+plot(v_tendencia_v1 , vt_tendencia_v1_mat)
 ```
 
-Kriging
+```{r}
+attr(vt_tendencia_v1_lin, 'SSErr')
+attr(vt_tendencia_v1_sph, 'SSErr')
+attr(vt_tendencia_v1_exp, 'SSErr')
+attr(vt_tendencia_v1_mat, 'SSErr')
+```
+
+Probemos ahora con la tendencia negativa
+```{r}
+v_tendencia_v2 <- variogram(MEAN_VIENTO_KMH~x-y, data_variogram)
+plot(v_tendencia_v2)
+
+v_alpha <- variogram(MEAN_VIENTO_KMH~x-y, data_variogram, alpha = c(0, 45, 90, 135))
+plot(v_alpha)
+
+v_cloud <- variogram(MEAN_VIENTO_KMH~x-y, data_variogram, cloud=TRUE)
+plot(v_cloud)
+
+# Elegimos a ojo el valor del cutoff
+plot(variogram(MEAN_VIENTO_KMH~x-y, data_variogram, cutoff=20, width=30, map=T))
+plot(variogram(MEAN_VIENTO_KMH~x-y, data_variogram, cutoff=10, width=5, map=T))
+plot(variogram(MEAN_VIENTO_KMH~x-y, data_variogram, cutoff=40, width=2, map=T))
+```
+```{r}
+vt_tendencia_v2_lin = fit.variogram(v_tendencia_v2, vgm(125, "Lin", 30, 10))
+plot(v_tendencia_v2 , vt_tendencia_v2_lin)
+```
+```{r}
+vt_tendencia_v2_exp = fit.variogram(v_tendencia_v2, vgm(125, "Exp", 30, 10))
+plot(v_tendencia_v2 , vt_tendencia_v2_exp)
+```
+```{r}
+vt_tendencia_v2_sph = fit.variogram(v_tendencia_v2, vgm(90, "Sph", 30, 10))
+plot(v_tendencia_v2 , vt_tendencia_v2_sph)
+```
+
+```{r}
+attr(vt_tendencia_v2_lin, 'SSErr')
+attr(vt_tendencia_v2_exp, 'SSErr')
+attr(vt_tendencia_v2_sph, 'SSErr')
+```
+
+
+#Kriging
+
+Armamos la grilla
+
+```{r}
+data_kriging <- data_variogram
+```
 
 ```{r}
 departamentos <- st_read("data_departamentos/Codgeo_Pais_x_dpto_con_datos/pxdptodatosok.shp")
@@ -556,37 +750,116 @@ departamentos <-departamentos[departamentos$departamen != "Antártida Argentina"
 departamentos <-departamentos[departamentos$departamen != "Islas del Atlántico Sur",]
 departamentos <- as_Spatial(departamentos)
 grilla <- as.data.frame(spsample(departamentos, type="regular", n=5000))
-names(grilla) <- c("X", "Y")
-coordinates(grilla) <- c("X", "Y")
+names(grilla) <- c("x", "y")
+coordinates(grilla) <- c("x", "y")
 plot(grilla)
 gridded(grilla) <- TRUE
 fullgrid(grilla) <- TRUE
 plot(grilla)
 proj4string(grilla) <- proj4string(departamentos)
-data_agg_sf <- as_Spatial(data_agg_sf)
-proj4string(data_agg_sf) <- proj4string(departamentos)
+proj4string(data_kriging) <- proj4string(departamentos)
 ```
 ```{r}
-ko1 <- krige(MEAN_VIENTO_KMH~1, data_agg_sf, grilla, model = vt_exp, nmax=20)
+ko1 <- krige(MEAN_VIENTO_KMH~1, data_kriging, grilla, model = vt_lin, nmax=15)
+ko2 <- krige(MEAN_VIENTO_KMH~1, data_kriging, grilla, model = vt_exp, nmax=15)
+ko3 <- krige(MEAN_VIENTO_KMH~1, data_kriging, grilla, model = vt_sph, nmax=15)
+ko4 <- krige(MEAN_VIENTO_KMH~x+y, data_kriging, grilla, model = vt_tendencia_v1_exp, nmax=15)
+ko5 <- krige(MEAN_VIENTO_KMH~x+y, data_kriging, grilla, model = vt_tendencia_v1_mat, nmax=15)
+ko6 <- krige(MEAN_VIENTO_KMH~x-y, data_kriging, grilla, model = vt_tendencia_v2_exp, nmax=15)
+ko7 <- krige(MEAN_VIENTO_KMH~x-y, data_kriging, grilla, model = vt_tendencia_v2_sph, nmax=15)
 ```
 ```{r}
-spplot(ko1["var1.pred"])
-spplot(ko1["var1.var"])
+ko1_cv <- krige.cv(MEAN_VIENTO_KMH~1, data_kriging, grilla, model = vt_lin, nmax=15, nfold=10) %>% mutate(modelo = "v0_linl")
+coordinates(ko1_cv) <- ~x+y
+ko1_cv <- st_as_sf(ko1_cv)
+
+ko2_cv <- krige.cv(MEAN_VIENTO_KMH~1, data_kriging, grilla, model = vt_exp, nmax=15, nfold=10) %>% mutate(modelo = "v0_exp")
+coordinates(ko2_cv) <- ~x+y
+ko2_cv <- st_as_sf(ko2_cv)
+
+ko3_cv <- krige.cv(MEAN_VIENTO_KMH~1, data_kriging, grilla, model = vt_sph, nmax=15, nfold=10) %>% mutate(modelo = "v0_sph")
+coordinates(ko3_cv) <- ~x+y
+ko3_cv <- st_as_sf(ko3_cv)
+
+ko4_cv <- krige.cv(MEAN_VIENTO_KMH~x+y, data_kriging, grilla, model = vt_tendencia_v1_exp, nmax=15, nfold=10) %>% mutate(modelo = "v1_exp")
+coordinates(ko4_cv) <- ~x+y
+ko4_cv <- st_as_sf(ko4_cv)
+
+ko5_cv <- krige.cv(MEAN_VIENTO_KMH~x+y, data_kriging, grilla, model = vt_tendencia_v1_mat, nmax=15, nfold=10) %>% mutate(modelo = "v1_mat")
+coordinates(ko5_cv) <- ~x+y
+ko5_cv <- st_as_sf(ko5_cv)
+
+ko6_cv <- krige.cv(MEAN_VIENTO_KMH~x-y, data_kriging, grilla, model = vt_tendencia_v2_exp, nmax=15, nfold=5) %>% mutate(modelo = "v2_exp")
+coordinates(ko6_cv) <- ~x+y
+ko6_cv <- st_as_sf(ko6_cv)
+
+ko7_cv <- krige.cv(MEAN_VIENTO_KMH~x-y, data_kriging, grilla, model = vt_tendencia_v2_sph, nmax=15, nfold=10) %>% mutate(modelo = "v2_sph")
+coordinates(ko7_cv) <- ~x+y
+ko7_cv <- st_as_sf(ko7_cv)
 ```
 ```{r}
-ko2 <- krige(MEAN_VIENTO_KMH~1, data_agg_sf, grilla, model = vt_exp, nmax=50)
-spplot(ko2["var1.pred"])
-spplot(ko2["var1.var"])
+pred_cv <- list(ko1_cv,ko2_cv,ko3_cv,ko4_cv,ko5_cv,ko6_cv,ko7_cv) %>% bind_rows()
+
+resumen <- pred_cv %>% as.data.frame() %>% group_by(modelo) %>% 
+  summarise(RMSE = sqrt(sum(residual^2)/length(residual))) %>% 
+  arrange(RMSE)
+
+resumen
 ```
 ```{r}
-ko3 <- krige(MEAN_VIENTO_KMH~1, data_agg_sf, grilla, model = vt_bes, nmax=50)
-spplot(ko3["var1.pred"])
-spplot(ko3["var1.var"])
+variogram_residual <- variogram(residual~1, ko4_cv)
+
+ggplot(variogram_residual, aes(x = dist, y = gamma)) + geom_point() + theme_bw() + 
+  xlab("Ditancia metros") + ylim(c(0, max(variogram_residual$gamma)))
+```
+```{r}
+#Observamos las predicciones
+ggplot() + 
+  geom_sf(data = ko4_cv, aes(color = exp(var1.pred))) + 
+  scale_color_viridis_c(name = "Promedio de la velocidad del viento")
+
+ggplot() + 
+  geom_sf(data = ko4_cv, aes(color = factor(fold))) +
+  facet_wrap(~factor(fold)) +
+  scale_color_viridis_d(name = "Promedio de la velocidad del viento")
+
+#Observamos la varianza
+ggplot() + 
+  geom_sf(data = ko4_cv, aes(color = exp(var1.var))) +
+  scale_color_viridis_c()  
+```
+```{r}
+ko5_cv$var1.pred <- round(ko5_cv$var1.pred,2)
+
+#Observamos las predicciones
+ggplot() + 
+  geom_sf(data = ko5_cv, aes(color = exp(var1.pred))) + 
+  scale_color_viridis_c()
+
+ggplot() + 
+  geom_sf(data = ko5_cv, aes(color = factor(fold))) +
+  facet_wrap(~factor(fold)) +
+  scale_color_viridis_d(name = "Folds")
+
+#Observamos la varianza
+ggplot() + 
+  geom_sf(data = ko5_cv, aes(color = exp(var1.var))) +
+  scale_color_viridis_c()  
+```
+
+```{r}
+spplot(ko4["var1.pred"])
+spplot(ko4["var1.var"])
+```
+
+```{r}
+spplot(ko5["var1.pred"])
+spplot(ko5["var1.var"])
 ```
 
 ```{r}
 library(raster)
-r <- raster(ko1)
+r <- raster(ko5)
 r.m <- mask(r, departamentos)
 ```
 
@@ -596,11 +869,11 @@ tm_shape(r.m) +
   tm_raster(n=10, 
             palette="Blues",
             auto.palette.mapping=FALSE,
-title="") +
+            title="Promedio de la velocidad del viento") +
 tm_legend(legend.outside=TRUE)
 ```
 ```{r}
-r <- raster(ko1, layer="var1.var")
+r <- raster(ko5, layer="var1.var")
 r.m <- mask(r, departamentos)
 
 tm_shape(r.m) +
@@ -610,7 +883,7 @@ tm_raster(n=7,
 tm_legend(legend.outside=TRUE)
 ```
 ```{r}
-r <- sqrt(raster(ko1, layer="var1.var")) * 1.96
+r <- sqrt(raster(ko5, layer="var1.var")) * 1.96
 r.m <- mask(r, departamentos)
 
 tm_shape(r.m) +
@@ -619,6 +892,3 @@ tm_raster(n=7,
           title="95% CI map \n(en km/h)") +
 tm_legend(legend.outside=TRUE)
 ```
-
-
-
